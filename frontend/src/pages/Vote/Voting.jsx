@@ -1,30 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Spline from "@splinetool/react-spline";
+import axios from "axios";
+import { API_PATH } from "../../utils/apiPath";
 
 const Voting = () => {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   // 🗳️ State to store registered candidates
   const [candidates, setCandidates] = useState([]);
   const [voted, setVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  
+  // 📌 Fetch candidates from server
   useEffect(() => {
     const fetchCandidates = async () => {
-      const mockCandidates = [
-        { id: 1, name: "Narendra Modi", party: "Bhartiya Janta Party" },
-        { id: 2, name: "Rahul Gandhi", party: "Congress" },
-      ];
-      setCandidates(mockCandidates);
+      try {
+        const response = await axios.get(API_PATH.GetCandidates);
+        setCandidates(response.data);
+      } catch (err) {
+        setError("Failed to fetch candidates. Please try again.");
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchCandidates();
   }, []);
 
-  
-  const handleVote = () => {
+  // 🗳️ Handle Vote Submission
+  const handleVote = async () => {
     if (!selectedCandidate) {
       alert("⚠️ Please select a candidate to vote!");
       return;
@@ -35,8 +42,13 @@ const Voting = () => {
       return;
     }
 
-    setVoted(true);
-    alert(`✅ Vote Cast Successfully for ${selectedCandidate}!`);
+    try {
+      await axios.post(API_PATH.CastVote, { candidate: selectedCandidate });
+      setVoted(true);
+      alert(`✅ Vote Cast Successfully for ${selectedCandidate}!`);
+    } catch (err) {
+      alert("❌ Failed to cast vote. Please try again.");
+    }
   };
 
   return (
@@ -51,7 +63,11 @@ const Voting = () => {
         <h2 className="text-3xl font-bold text-center mb-4">🗳️ Voting Panel</h2>
         <p className="text-center text-gray-300 mb-6">Select a candidate and cast your vote</p>
 
-        {candidates.length > 0 ? (
+        {loading ? (
+          <p className="text-center text-gray-300">Loading candidates...</p>
+        ) : error ? (
+          <p className="text-center text-red-400">{error}</p>
+        ) : candidates.length > 0 ? (
           <ul className="space-y-3">
             {candidates.map((candidate) => (
               <li
@@ -73,8 +89,9 @@ const Voting = () => {
         <button
           onClick={handleVote}
           className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg mt-4 transition-all font-semibold"
+          disabled={voted}
         >
-          CAST VOTE
+          {voted ? "VOTED ✅" : "CAST VOTE"}
         </button>
 
         {voted && (

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layout/AuthLayout";
 import Spline from "@splinetool/react-spline";
+import { API_PATH } from "../../utils/apiPath";
 
 const AdminLogin = () => {
   const [userName, setUserName] = useState("");
@@ -10,7 +11,7 @@ const AdminLogin = () => {
 
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     try {
@@ -20,11 +21,11 @@ const AdminLogin = () => {
       }
       setError("");
 
-      if (userName === "voter123" && password === "password") {
-        navigate("/add-candidate");
-      } else {
-        setError("Invalid username or password.");
-      }
+      const response = await axios.post(API_PATH.LoginAdmin, {
+        userName,
+        password,
+      });
+      navigate("/admin-home");
     } catch (err) {
       setError("Something went wrong. Please try again.");
     }

@@ -1,12 +1,26 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
+import Spline from "@splinetool/react-spline";
+import { API_PATH } from "../../utils/apiPath";
 
 const RegisteredCandidates = () => {
   const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Fetch registered candidates from localStorage
-    const storedCandidates = JSON.parse(localStorage.getItem("candidates")) || [];
-    setCandidates(storedCandidates);
+    const fetchCandidates = async () => {
+      try {
+        const response = await axios.get(API_PATH.GetCandidates);
+        setCandidates(response.data);
+      } catch (err) {
+        setError("Failed to fetch candidates. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCandidates();
   }, []);
 
   return (
@@ -14,7 +28,11 @@ const RegisteredCandidates = () => {
       <div className="w-full max-w-4xl bg-white bg-opacity-10 backdrop-blur-xl shadow-xl p-6 rounded-lg border border-white/30">
         <h2 className="text-3xl font-bold text-center mb-6">Registered Candidates</h2>
 
-        {candidates.length === 0 ? (
+        {loading ? (
+          <p className="text-center text-gray-300">Loading candidates...</p>
+        ) : error ? (
+          <p className="text-center text-red-400">{error}</p>
+        ) : candidates.length === 0 ? (
           <p className="text-center text-gray-300">No candidates registered yet.</p>
         ) : (
           <table className="w-full border-collapse border border-gray-400 text-center">
