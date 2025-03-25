@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Spline from "@splinetool/react-spline";
 import AuthLayout from "../../layout/AuthLayout";
-import Cam from "../../components/WebCam/CAM"; // Import Webcam Component
+
+import axios from "axios";
+import { API_PATH } from "../../utils/apiPath";
 
 const VoterRegister = () => {
   const [name, setName] = useState("");
@@ -11,22 +13,44 @@ const VoterRegister = () => {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [image, setImage] = useState(null); 
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
-  const RegisterUser = (e) => {
+  const RegisterUser = async (e) => {
     e.preventDefault();
 
-    if (!name || !email || !password || !username || !phone || !address || !image) {
-      setError("All fields are required, including the image!");
+    if (!name || !password || !username || !image) {
+      setError("All fields are required");
       return;
     }
 
     setError("");
-    console.log("User Registered:", { name, email, username, phone, address, image });
-    navigate("/dashboard"); 
+    
+    
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("username", username);
+    formData.append("phone", phone);
+    formData.append("address", address);
+    formData.append("image", image); 
+
+    try {
+      const response = await axios.post(API_PATH.RegisterVoter, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      navigate("/login");
+    } catch (error) {
+      if (error.response && error.response.data.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    }
   };
 
   return (
@@ -46,7 +70,9 @@ const VoterRegister = () => {
             Please fill in the details to create your account.
           </p>
 
-          {error && <p className="text-red-400 text-sm text-center mb-2">{error}</p>}
+          {error && (
+            <p className="text-red-400 text-sm text-center mb-2">{error}</p>
+          )}
 
           {/* Registration Form */}
           <form onSubmit={RegisterUser} className="space-y-4">
@@ -74,10 +100,34 @@ const VoterRegister = () => {
               className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
             />
 
-            {/* Webcam Component */}
-            <div className="text-white">
-              <h4 className="text-lg font-semibold mb-2">Capture Image</h4>
-              <Cam setImage={setImage} />
+            {/* Image Upload */}
+            <div className="flex flex-col items-center space-y-3">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setImage(file);
+                    setPreview(URL.createObjectURL(file)); 
+                  }
+                }}
+                className="block w-full text-sm text-gray-300
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-600 file:text-white
+                  hover:file:bg-blue-700"
+              />
+
+              {/* Show Preview if Image Exists */}
+              {preview && (
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-40 h-40 object-cover rounded-lg border border-gray-400 shadow-md"
+                />
+              )}
             </div>
 
             <button
