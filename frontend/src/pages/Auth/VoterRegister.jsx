@@ -129,6 +129,12 @@ const VoterRegister = () => {
                 />
               )}
             </div>
+            <button
+              type="button"
+              className="w-full hover:bg-purple-700 text-white p-3 rounded-lg transition-all "
+            >
+              ADD WALLET
+            </button>
 
             <button
               type="submit"
