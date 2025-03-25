@@ -19,6 +19,18 @@ const VoterRegister = () => {
 
   const navigate = useNavigate();
 
+  const handleWalletConnect = async () => {
+    //getting the ethereum provider and wallet address
+    const provider = await window.ethereum;
+    if (provider) {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const walletAddress = accounts[0];
+      setAddress(walletAddress);
+    } else {
+      console.error('Please install MetaMask!');
+    }
+  }
+
   const RegisterUser = async (e) => {
     e.preventDefault();
 
@@ -132,8 +144,9 @@ const VoterRegister = () => {
             <button
               type="button"
               className="w-full hover:bg-purple-700 text-white p-3 rounded-lg transition-all "
+              onClick={handleWalletConnect}
             >
-              ADD WALLET
+              {address ? "Connected to: " + address : "Connect Wallet"}
             </button>
 
             <button
