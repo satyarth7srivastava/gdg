@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layout/AuthLayout";
 import Spline from "@splinetool/react-spline";
 import axios from "axios";
-import Webcam from "react-webcam"; // Import Webcam Component
+import Webcam from "react-webcam"; 
 
 import { API_PATH } from "../../utils/apiPath";
 
