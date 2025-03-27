@@ -7,11 +7,8 @@ import axios from "axios";
 import { API_PATH } from "../../utils/apiPath";
 
 const VoterRegister = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [voterID, setVoterID] = useState(null);
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -34,7 +31,7 @@ const VoterRegister = () => {
   const RegisterUser = async (e) => {
     e.preventDefault();
 
-    if (!name || !password || !username || !image) {
+    if (!voterID || !password || !image || !address) {
       setError("All fields are required");
       return;
     }
@@ -43,16 +40,14 @@ const VoterRegister = () => {
     
     
     const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
+    formData.append("VoterID", voterID);
     formData.append("password", password);
-    formData.append("username", username);
-    formData.append("phone", phone);
-    formData.append("address", address);
+    formData.append("role", "voter");
     formData.append("image", image); 
+    formData.append("wallet", address);
 
     try {
-      const response = await axios.post(API_PATH.RegisterVoter, formData, {
+      const response = await axios.post('http://127.0.0.1:8000/register', formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       navigate("/login");
@@ -90,17 +85,9 @@ const VoterRegister = () => {
           <form onSubmit={RegisterUser} className="space-y-4">
             <input
               type="text"
-              placeholder="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
-            />
-
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Voter ID"
+              value={voterID}
+              onChange={(e) => setVoterID(e.target.value)}
               className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
             />
 
