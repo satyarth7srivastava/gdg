@@ -12,12 +12,15 @@
   "dependencies": {
     "@splinetool/react-spline": "^4.0.0",
     "@tailwindcss/vite": "^4.0.15",
+    "@truffle/contract": "^4.6.31",
     "axios": "^1.8.4",
+    "ethers": "^6.13.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.4.0",
     "react-webcam": "^7.2.0",
     "tailwindcss": "^4.0.15",
+    "web3": "^4.16.0",
     "webcam-easy": "^1.1.1"
   },
   "devDependencies": {

@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import Spline from "@splinetool/react-spline";
 import axios from "axios";
 import { API_PATH } from "../../utils/apiPath";
+
+import { ethers } from "ethers";
+import votingArtifacts from "../../../blockchain/build/contracts/Voting.json";
+import address from "../../../blockchain/contractAddress.json";
+
 const AddCandidate = () => {
   const [candidateName, setCandidateName] = useState("");
   const [party, setParty] = useState("");
@@ -18,18 +23,21 @@ const AddCandidate = () => {
       return;
     }
 
-    setError("");
-
-    alert(
-      `✅ Candidate Registered Successfully!\n\n👤 Name: ${candidateName}\n🏛️ Party: ${party}\n📅 date: ${date}`
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner(0);
+    const contractAddress = address.Voting;
+    const contract = new ethers.Contract(
+      contractAddress,
+      votingArtifacts.abi,
+      signer
     );
-
-    const response = await axios.post(API_PATH.AddCandidate, {
-      candidateName,
-      party,
-      date,
-    });
-    console.log(response);
+    contract.addCandidate(candidateName,party)
+    .then((tx) => {
+      console.log("Transaction Hash:", tx.hash);
+      alert("Candidate added successfully!");
+      return tx.wait();
+    })
+    setError("");
   };
 
   return (
