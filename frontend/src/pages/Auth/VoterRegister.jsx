@@ -12,6 +12,7 @@ const VoterRegister = () => {
   const [address, setAddress] = useState("");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [role, setRole] = useState("voter");
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const VoterRegister = () => {
     const formData = new FormData();
     formData.append("VoterID", voterID);
     formData.append("password", password);
-    formData.append("role", "voter");
+    formData.append("role", role);
     formData.append("image", image); 
     formData.append("wallet", address);
 
@@ -71,7 +72,7 @@ const VoterRegister = () => {
       <div className="flex justify-center items-center min-h-screen">
         <div className="w-full max-w-lg bg-transparent shadow-xl p-8 rounded-lg border border-white/30">
           <h3 className="text-3xl font-bold text-white text-center mb-4">
-            Register as a Voter
+            Register as a Voter/Admin
           </h3>
           <p className="text-center text-gray-200 mb-6">
             Please fill in the details to create your account.
@@ -85,7 +86,7 @@ const VoterRegister = () => {
           <form onSubmit={RegisterUser} className="space-y-4">
             <input
               type="text"
-              placeholder="Voter ID"
+              placeholder="Voter/Admin ID"
               value={voterID}
               onChange={(e) => setVoterID(e.target.value)}
               className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
@@ -98,6 +99,15 @@ const VoterRegister = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
             />
+
+            {/* select role */}
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
+            > <option value="voter" className="text-black">Voter</option>
+              <option value="admin" className="text-black">Admin</option>
+            </select>
 
             {/* Image Upload */}
             <div className="flex flex-col items-center space-y-3">

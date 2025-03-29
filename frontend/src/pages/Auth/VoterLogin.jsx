@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { data, Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layout/AuthLayout";
 import Spline from "@splinetool/react-spline";
 import axios from "axios";
@@ -8,10 +8,11 @@ import Webcam from "react-webcam";
 import { API_PATH } from "../../utils/apiPath";
 
 const VoterLogin = () => {
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [image, setImage] = useState(null);
+  const [address, setAddress] = useState("");
 
   const navigate = useNavigate();
   const webcamRef = useRef(null);
@@ -21,6 +22,18 @@ const VoterLogin = () => {
     const imageSrc = webcamRef.current.getScreenshot();
     setImage(imageSrc);
   }, [webcamRef]);
+
+  const handleWalletConnect = async () => {
+    //getting the ethereum provider and wallet address
+    const provider = await window.ethereum;
+    if (provider) {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const walletAddress = accounts[0];
+      setAddress(walletAddress);
+    } else {
+      console.error('Please install MetaMask!');
+    }
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,15 +52,21 @@ const VoterLogin = () => {
 
     // Prepare FormData to send username, password, and image
     const formData = new FormData();
-    formData.append("userName", userName);
+    formData.append("VoterID", userName);
     formData.append("password", password);
-    formData.append("image", image); // Send captured image
+    formData.append("imageBase64", image); // Send captured image
+    formData.append("address", address); // Send wallet address
 
     try {
-      const response = await axios.post(API_PATH.LoginVoter, formData, {
+      const response = await axios.post('http://127.0.0.1:8000/login', formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      navigate("/vote");
+      const role = response.data.role;
+      if (role === "admin") {
+        navigate("/admin-home");
+      } else if (role === "voter") {
+        navigate("/vote");
+      }
     } catch (err) {
       setError("Something went wrong. Please try again.");
     }
@@ -64,7 +83,7 @@ const VoterLogin = () => {
       <div className="flex justify-center items-center min-h-screen">
         <div className="w-full max-w-md bg-transparent shadow-xl p-8 rounded-lg border border-white/30">
           <h3 className="text-3xl font-bold text-white text-center mb-4">
-            Welcome Voter
+            Welcome
           </h3>
           <p className="text-center text-gray-200 mb-6">
             Please enter your details and capture an image to proceed
@@ -75,7 +94,7 @@ const VoterLogin = () => {
             <input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              placeholder="Username"
+              placeholder="ID"
               type="text"
               className="w-full p-3 bg-transparent border border-gray-300 rounded-lg text-white placeholder-gray-300"
             />
@@ -124,6 +143,14 @@ const VoterLogin = () => {
             </div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
+
+            <button
+              type="button"
+              className="w-full hover:bg-purple-700 text-white p-3 rounded-lg transition-all "
+              onClick={handleWalletConnect}
+            >
+              {address ? "Connected to: " + address : "Connect Wallet"}
+            </button>
 
             <button
               type="submit"

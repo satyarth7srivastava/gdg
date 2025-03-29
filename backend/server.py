@@ -36,6 +36,13 @@ class RegisterUser(BaseModel):
     wallet: str
 
 #Helper functions
+def save_image(imageBase64: str):
+    imgdata = base64.b64decode(imageBase64)
+    filename = 'image.jpg'
+    with open(filename, 'wb') as f:
+        f.write(imgdata)
+    return filename
+
 def get_password_hash(password):
     return pwd_context.hash(password)
 
@@ -53,18 +60,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-import deepface as Deepface
+from deepface import DeepFace as df
+import base64
 
 
-def face_verify(path1: str, path2: str):
- imgpath1 = path1   #from database
- imgpath2 = path2   #from webcam
+def face_verify(imageBase64: str, path2: str):
+ imageBase64 = imageBase64.split(",")[1]
+ imgdata = base64.b64decode(imageBase64)
+ filename = 'tp.jpg'
+ with open(filename, 'wb') as f:
+    f.write(imgdata)
+
+ imgpath1 = "tp.jpg"  #from frontend
+ imgpath2 = "./images/" + path2   #from database
+
  
  try:
-  result = Deepface.verify(img1_path=imgpath1,img2_path=imgpath2)
+  result = df.verify(img1_path=imgpath1, img2_path=imgpath2, enforce_detection=False)
   return result["verified"]
  except Exception as e:
-  print("Error in face_verification")
+  print("Error in face_verification: ", e)
   return False
 
 
@@ -78,15 +93,16 @@ def connect_to_database():
             password='helloishu1'
         )
         if connection.is_connected():
+            print("Connected to MySQL database")
             return connection
     except Error as e:
         print(f"Error while connecting to MySQL: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Database connection failed"
         )
 
-def verify_user(VoterID: int, password: str):
+def verify_user(VoterID: int, password: str, address: str):
     conn = connect_to_database()
     if not conn.is_connected():
         return False
@@ -102,19 +118,10 @@ def verify_user(VoterID: int, password: str):
         return False
     if not verify_password(password, user[1]):
         return False
+    if not address == user[6]:
+        return False
     return True
 
-def hash_and_store_password(VoterID: int, password: str):
-    conn = connect_to_database()
-    if not conn.is_connected():
-        return False
-    cursor = conn.cursor()
-    hashed_password = get_password_hash(password)
-    cursor.execute(f"UPDATE users SET passwordHashed='{hashed_password}' WHERE VoterID='{VoterID}'")
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return True
 
 def save_image(image: UploadFile):
     imageID = uuid.uuid4();
@@ -128,9 +135,9 @@ def register_user(VoterID: int, password: str, role: str, image: UploadFile, wal
     conn = connect_to_database()
     if not conn.is_connected():
         return False
+    imageID = save_image(image)
     cursor = conn.cursor()
     hashed_password = get_password_hash(password)
-    imageID = save_image(image)
     access_token = create_access_token(data={"sub": VoterID}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     expiry = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     cursor.execute(f"INSERT INTO users (VoterID, passwordHashed, role, authToken, tokenExpiry, imageURL, wallet) VALUES ({VoterID}, '{hashed_password}', '{role}',  '{access_token}', '{expiry}', '{imageID}', '{wallet}');")
@@ -158,37 +165,43 @@ app.add_middleware(
 async def status():
     return {"status": "ok"}
 
-@app.post("/imageAuth")
-async def imageAuth(file: UploadFile):
-    file_loacation = f"images/{file.filename}"
-    # Save the uploaded image to the images folder
-    # with the same name as the uploaded file
-    with open(file_loacation, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return {"filename": file.filename}
 
 @app.post("/login")
-async def login(user: User):
-    if not verify_user(user.VoterID, user.password):
+async def login(VoterID : Annotated[int, Form()], password : Annotated[str, Form()], imageBase64 : Annotated[str, Form()], address : Annotated[str, Form()]):
+    if not verify_user(VoterID, password, address):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Invalid credentials"
+        )
+    conn = connect_to_database()
+    if not conn.is_connected():
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection failed"
+        )
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT imageURL FROM users WHERE VoterID='{VoterID}'")
+    image = cursor.fetchone()
+    cursor.execute(f"SELECT role FROM users WHERE VoterID='{VoterID}'")
+    role = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if image is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Failed to fetch user image"
+        )
+    if not face_verify(imageBase64, image[0]):
+        raise HTTPException(
+            status_code=401,
+            detail="Face verification failed"
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.VoterID}, expires_delta=access_token_expires
+        data={"sub": VoterID}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role": role[0]}
 
-@app.post("/hash_password")
-async def hash_password(user: User):
-    if hash_and_store_password(user.VoterID, user.password):
-        return {"status": "password hashed and stored"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to hash and store password"
-        )
 
 @app.post("/register")
 async def register(VoterID : Annotated[int, Form()], password : Annotated[str, Form()], role : Annotated[str, Form()], image: UploadFile, wallet: Annotated[str, Form()]):
@@ -199,7 +212,7 @@ async def register(VoterID : Annotated[int, Form()], password : Annotated[str, F
     wallet = str(wallet)
     if not register_user(VoterID, password, role, image, wallet):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to register user"
         )
     return {"status": "user registered"}

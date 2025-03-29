@@ -1,14 +1,5 @@
-import deepface as Deepface
+from deepface import DeepFace as df
 
-
-def face_verify():
- imgpath1=" "   #from database
- imgpath2=" "   #from webcam
- 
- try:
-  result = Deepface.verify(img1_path=imgpath1,img2_path=imgpath2)
-  return result["verified"]
- except Exception as e:
-  print("Error in face_verification")
-  return False
-
+res = df.verify(img1_path="tp.jpg", img2_path="./images/25e06d36-3b2a-4ee5-a5fa-a623658b4744WIN_20250328_14_29_32_Pro.jpg", enforce_detection=False)
+print(res["verified"])
+print(res["distance"])
