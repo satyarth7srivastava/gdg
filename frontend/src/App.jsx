@@ -15,6 +15,7 @@ import AddCandidate from './pages/Admin/AddCandidate';
 import AdminHome from './pages/Admin/AdminHome';
 import RegisteredCandidates from './pages/Admin/RegisteredCandidates';
 import Voting from './pages/Vote/Voting';
+import DefineDate from './pages/Admin/DefineDate';
 const App = () => {
   return (
     <div>
@@ -28,6 +29,7 @@ const App = () => {
         <Route path = "/admin-home" exact element = {<AdminHome/>} />
         <Route path = "/registered-candidates" exact element={<RegisteredCandidates/>}/>
         <Route path = "/vote" exact element={<Voting/>} />
+        <Route path = "/define-date" exact element={<DefineDate/>} />
         </Routes>
       </Router>
     </div>

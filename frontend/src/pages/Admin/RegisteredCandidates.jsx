@@ -36,7 +36,6 @@ const RegisteredCandidates = () => {
           }
           candidateList.push(candidateData);
         }
-        console.log(candidateList);
         if (candidateList.length > 0) {
           setCandidates(candidateList);
         }else{
