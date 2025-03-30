@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import Spline from "@splinetool/react-spline";
-import axios from "axios";
-import { API_PATH } from "../../utils/apiPath";
 
 import { ethers } from "ethers";
 import votingArtifacts from "../../../blockchain/build/contracts/Voting.json";
@@ -33,7 +31,6 @@ const AddCandidate = () => {
     );
     contract.addCandidate(candidateName,party)
     .then((tx) => {
-      console.log("Transaction Hash:", tx.hash);
       alert("Candidate added successfully!");
       return tx.wait();
     })
