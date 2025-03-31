@@ -75,6 +75,7 @@ const Voting = () => {
     try {
       const tx = await contractInstance.vote(selectedCandidate);
       await tx.wait();
+      setVoted(true);
       alert(`✅ Vote Cast Successfully for ${selectedCandidate}!`);
     } catch (err) {
       alert("❌ Failed to cast vote. Please try again.");
