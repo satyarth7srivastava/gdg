@@ -36,6 +36,10 @@ const AdminHome = () => {
           >
             📋 View Registered Candidates
           </button>
+          <button
+            onClick={() => navigate("/define-date")}
+            className="w-full py-3 bg-purple-600 hover:bg-purple-700 transition-all text-white text-lg font-semibold rounded-lg shadow-md"
+            >Define Dates of Elections</button>
         </div>
       </div>
     </div>

@@ -4,23 +4,53 @@ import Spline from "@splinetool/react-spline";
 import axios from "axios";
 import { API_PATH } from "../../utils/apiPath";
 
+import { ethers } from "ethers";
+import votingArtifacts from "../../../blockchain/build/contracts/Voting.json";
+import address from "../../../blockchain/contractAddress.json";
+
 const Voting = () => {
   const navigate = useNavigate();
 
 
   const [candidates, setCandidates] = useState([]);
   const [voted, setVoted] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [contractInstance, setContractInstance] = useState(null);
 
   // 📌 Fetch candidates from server
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
-        const response = await axios.get(API_PATH.GetCandidates);
-        setCandidates(response.data);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner(0);
+        const contractAddress = address.Voting;
+        const contract = new ethers.Contract(
+          contractAddress,
+          votingArtifacts.abi,
+          signer
+        );
+        setContractInstance(contract);
+        var candidateList = [];
+        const candidateCount = await contract.getCountCandidates();
+        for (let i = 0; i < candidateCount; i++) {
+          const candidate = await contract.getCandidate(i + 1);
+          const candidateData = {
+            id: candidate[0],
+            candidateName: candidate[1],
+            party: candidate[2],
+            vote: candidate[3],
+          }
+          candidateList.push(candidateData);
+        }
+        if (candidateList.length > 0) {
+          setCandidates(candidateList);
+        } else {
+          setError("No candidates registered yet.");
+        }
       } catch (err) {
+        console.error("Error fetching candidates:", err);
         setError("Failed to fetch candidates. Please try again.");
       } finally {
         setLoading(false);
@@ -43,7 +73,8 @@ const Voting = () => {
     }
 
     try {
-      await axios.post(API_PATH.CastVote, { candidate: selectedCandidate });
+      const tx = await contractInstance.vote(selectedCandidate);
+      await tx.wait();
       setVoted(true);
       alert(`✅ Vote Cast Successfully for ${selectedCandidate}!`);
     } catch (err) {
@@ -72,12 +103,11 @@ const Voting = () => {
             {candidates.map((candidate) => (
               <li
                 key={candidate.id}
-                className={`p-3 rounded-lg cursor-pointer ${
-                  selectedCandidate === candidate.name ? "bg-blue-600" : "bg-gray-800"
-                } hover:bg-blue-500 transition`}
-                onClick={() => setSelectedCandidate(candidate.name)}
+                className={`p-3 rounded-lg cursor-pointer ${selectedCandidate === candidate.id ? "bg-blue-600" : "bg-gray-800"
+                  } hover:bg-blue-500 transition`}
+                onClick={() => setSelectedCandidate(candidate.id)}
               >
-                <span className="font-semibold">{candidate.name}</span> - {candidate.party}
+                <span className="font-semibold">{candidate.candidateName}</span> - {candidate.party}
               </li>
             ))}
           </ul>
