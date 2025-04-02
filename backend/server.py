@@ -7,20 +7,21 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Optional
-import mysql.connector
-from mysql.connector import Error
 import uuid
 from typing import Annotated
-
 from typing import List
-
+from pymongo import MongoClient
+from deepface import DeepFace as df
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY = "1234"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Load environment variables from .env file
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 # Pydantic models
 class Token(BaseModel):
@@ -60,7 +61,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-from deepface import DeepFace as df
 import base64
 
 
@@ -82,49 +82,32 @@ def face_verify(imageBase64: str, path2: str):
   print("Error in face_verification: ", e)
   return False
 
-
-
 def connect_to_database():
     try:
-        connection = mysql.connector.connect(
-            host='localhost',
-            database='voter_db',
-            user='root',
-            password='helloishu1'
-        )
-        if connection.is_connected():
-            print("Connected to MySQL database")
-            return connection
-    except Error as e:
-        print(f"Error while connecting to MySQL: {e}")
+        client = MongoClient(os.getenv("MONGO_URI"))
+        db = client["voter_db"]
+        print("Connected to MongoDB database")
+        return db
+    except Exception as e:
+        print(f"Error while connecting to MongoDB: {e}")
         raise HTTPException(
             status_code=500,
             detail="Database connection failed"
         )
 
 def verify_user(VoterID: int, password: str, address: str):
-    conn = connect_to_database()
-    if not conn.is_connected():
-        return False
-    cursor = conn.cursor()
-    if cursor is None:
-        print("Error while connecting to database")
-        return False
-    cursor.execute(f"SELECT * FROM users WHERE VoterID='{VoterID}'")
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    db = connect_to_database()
+    user = db.users.find_one({"VoterID": VoterID})
     if user is None:
         return False
-    if not verify_password(password, user[1]):
+    if not verify_password(password, user["passwordHashed"]):
         return False
-    if not address == user[6]:
+    if not address == user["wallet"]:
         return False
     return True
 
-
 def save_image(image: UploadFile):
-    imageID = uuid.uuid4();
+    imageID = uuid.uuid4()
     imageID = str(imageID)
     file_location = f"images/{imageID + image.filename}"
     with open(file_location, "wb") as buffer:
@@ -132,25 +115,33 @@ def save_image(image: UploadFile):
     return imageID + image.filename
 
 def register_user(VoterID: int, password: str, role: str, image: UploadFile, wallet: str):
-    conn = connect_to_database()
-    if not conn.is_connected():
-        return False
+    db = connect_to_database()
     imageID = save_image(image)
-    cursor = conn.cursor()
     hashed_password = get_password_hash(password)
     access_token = create_access_token(data={"sub": VoterID}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     expiry = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    cursor.execute(f"INSERT INTO users (VoterID, passwordHashed, role, authToken, tokenExpiry, imageURL, wallet) VALUES ({VoterID}, '{hashed_password}', '{role}',  '{access_token}', '{expiry}', '{imageID}', '{wallet}');")
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return True
+    user_data = {
+        "VoterID": VoterID,
+        "passwordHashed": hashed_password,
+        "role": role,
+        "authToken": access_token,
+        "tokenExpiry": expiry,
+        "imageURL": imageID,
+        "wallet": wallet
+    }
+    try:
+        db.users.insert_one(user_data)
+        return True
+    except Exception as e:
+        print(f"Error while registering user: {e}")
+        return False
 
 # Add CORS settings to allow frontend to access the backend
 origins = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://localhost:5173",
+    "*"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -173,25 +164,14 @@ async def login(VoterID : Annotated[int, Form()], password : Annotated[str, Form
             status_code=401,
             detail="Invalid credentials"
         )
-    conn = connect_to_database()
-    if not conn.is_connected():
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection failed"
-        )
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT imageURL FROM users WHERE VoterID='{VoterID}'")
-    image = cursor.fetchone()
-    cursor.execute(f"SELECT role FROM users WHERE VoterID='{VoterID}'")
-    role = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    if image is None:
+    db = connect_to_database()
+    user = db.users.find_one({"VoterID": VoterID})
+    if user is None:
         raise HTTPException(
             status_code=404,
-            detail="Failed to fetch user image"
+            detail="Failed to fetch user data"
         )
-    if not face_verify(imageBase64, image[0]):
+    if not face_verify(imageBase64, user["imageURL"]):
         raise HTTPException(
             status_code=401,
             detail="Face verification failed"
@@ -200,7 +180,7 @@ async def login(VoterID : Annotated[int, Form()], password : Annotated[str, Form
     access_token = create_access_token(
         data={"sub": VoterID}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": role[0]}
+    return {"access_token": access_token, "token_type": "bearer", "role": user["role"]}
 
 
 @app.post("/register")
