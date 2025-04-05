@@ -11,7 +11,7 @@ import address from "../../../blockchain/contractAddress.json";
 const Voting = () => {
   const navigate = useNavigate();
 
-
+  // 🗳️ State to store registered candidates
   const [candidates, setCandidates] = useState([]);
   const [voted, setVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
