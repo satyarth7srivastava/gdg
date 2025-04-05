@@ -22,6 +22,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(ACCESS_TOKEN_EXPIRE_MINUTES) if ACCESS_TOKEN_EXPIRE_MINUTES else 30
 
 # Pydantic models
 class Token(BaseModel):
@@ -64,22 +65,29 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 import base64
 
 
-def face_verify(imageBase64: str, path2: str):
- imageBase64 = imageBase64.split(",")[1]
- imgdata = base64.b64decode(imageBase64)
- filename = 'tp.jpg'
- with open(filename, 'wb') as f:
+def face_verify(image1: str, image2: str):
+ image1 = image1.split(",")[1]
+ imgdata = base64.b64decode(image1)
+ filename1 = 'tp1.jpg'
+ filename2 = 'tp2.jpg'
+ with open(filename1, 'wb') as f:
     f.write(imgdata)
-
- imgpath1 = "tp.jpg"  #from frontend
- imgpath2 = "./images/" + path2   #from database
+ with open(filename2, 'wb') as f:
+    f.write(base64.b64decode(image2))
+ imgpath1 = "tp1.jpg"  #from frontend
+ imgpath2 = "tp2.jpg"  #from database
 
  
  try:
   result = df.verify(img1_path=imgpath1, img2_path=imgpath2, enforce_detection=False)
+  #removing the files
+  os.remove(imgpath1)
+  os.remove(imgpath2)
   return result["verified"]
  except Exception as e:
   print("Error in face_verification: ", e)
+  os.remove(imgpath1)
+  os.remove(imgpath2)
   return False
 
 def connect_to_database():
@@ -106,18 +114,19 @@ def verify_user(VoterID: int, password: str, address: str):
         return False
     return True
 
-def save_image(image: UploadFile):
+def convert_image(image: UploadFile):
     imageID = uuid.uuid4()
     imageID = str(imageID)
-    file_location = f"images/{imageID + image.filename}"
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-    return imageID + image.filename
+    #converting to base64 string
+    image_data = image.file.read()
+    base64_image = base64.b64encode(image_data).decode('utf-8')
+    return base64_image
 
 def register_user(VoterID: int, password: str, role: str, image: UploadFile, wallet: str):
     db = connect_to_database()
-    imageID = save_image(image)
+    imageID = convert_image(image)
     hashed_password = get_password_hash(password)
+    print(ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": VoterID}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     expiry = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     user_data = {
@@ -126,7 +135,7 @@ def register_user(VoterID: int, password: str, role: str, image: UploadFile, wal
         "role": role,
         "authToken": access_token,
         "tokenExpiry": expiry,
-        "imageURL": imageID,
+        "imageBase64": imageID,
         "wallet": wallet
     }
     try:
@@ -171,7 +180,7 @@ async def login(VoterID : Annotated[int, Form()], password : Annotated[str, Form
             status_code=404,
             detail="Failed to fetch user data"
         )
-    if not face_verify(imageBase64, user["imageURL"]):
+    if not face_verify(imageBase64, user["imageBase64"]):
         raise HTTPException(
             status_code=401,
             detail="Face verification failed"

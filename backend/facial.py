@@ -1,5 +1,11 @@
 from deepface import DeepFace as df
+import base64
 
-res = df.verify(img1_path="tp.jpg", img2_path="./images/25e06d36-3b2a-4ee5-a5fa-a623658b4744WIN_20250328_14_29_32_Pro.jpg", enforce_detection=False)
+with open("./tp.jpg", "rb") as image_file:
+    imageBase64_image1 = base64.b64encode(image_file.read()).decode('utf-8')
+with open("./tp2.jpg", "rb") as file:
+    imageBase64_image2 = base64.b64encode(file.read()).decode('utf-8')
+
+res = df.verify(img1_path = imageBase64_image1, img2_path = imageBase64_image2, model_name = "VGG-Face", detector_backend = "opencv", enforce_detection = False, distance_metric = "cosine", normalization = "base64")
 print(res["verified"])
 print(res["distance"])
