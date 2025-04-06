@@ -58,7 +58,7 @@ const VoterLogin = () => {
     formData.append("address", address); // Send wallet address
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/login', formData, {
+      const response = await axios.post('https://gdg-backend-pf28.onrender.com/login', formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const role = response.data.role;

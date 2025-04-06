@@ -109,8 +109,10 @@ def verify_user(VoterID: int, password: str, address: str):
     if user is None:
         return False
     if not verify_password(password, user["passwordHashed"]):
+        print("Password verification failed")
         return False
     if not address == user["wallet"]:
+        print("Address verification failed")
         return False
     return True
 
